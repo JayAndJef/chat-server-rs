@@ -1,33 +1,24 @@
-use std::{net::{TcpListener, TcpStream}, sync::{Arc, Mutex, mpsc::{Sender, Receiver, self}, RwLock}, io::{Write, BufReader, BufRead}, error::Error, thread};
+pub mod user_message;
 
-#[derive(Clone, Debug)]
-struct UserMessage {
-    user: String,
-    message: String,
-}
+use std::{net::{TcpListener, TcpStream}, sync::{Arc, mpsc::{Sender, Receiver, self}, RwLock}, io::{Write, BufReader, BufRead}, error::Error, thread};
 
-impl UserMessage {
-    fn new(user: String, message: String) -> Self {
-        Self {
-            user,
-            message,
-        }
-    }
-}
+use user_message::UserMessage;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:5000").expect("could not bind server");
 
     let (tx, rx): (Sender<UserMessage>, Receiver<UserMessage>) = mpsc::channel();
-    let mut users: Arc<RwLock<Vec<Arc<TcpStream>>>> = Arc::new(RwLock::new(Vec::new()));
+    let users: Arc<RwLock<Vec<Arc<TcpStream>>>> = Arc::new(RwLock::new(Vec::new()));
+
+    let temp_users = Arc::clone(&users);
 
     thread::spawn(move || {
-        echo_messages(rx, &users)
+        echo_messages(rx, &temp_users)
     });
 
     for stream in listener.incoming() {
         let stream = Arc::new(stream.expect("Could not connect incoming stream"));
-        users.push(Arc::clone(&stream));
+        users.write().unwrap().push(Arc::clone(&stream));
         let msg_send_clone = tx.clone();
         let thread_handle = thread::spawn(move || { 
             match handle_user(stream, msg_send_clone) {
@@ -62,7 +53,7 @@ fn handle_user(user: Arc<TcpStream>, msg_chan: Sender<UserMessage>) -> Result<()
     }
 }
 
-fn echo_messages(msg_recv: Receiver<UserMessage>, users: &[Arc<TcpStream>]) {
+fn echo_messages(msg_recv: Receiver<UserMessage>, users: &Arc<RwLock<Vec<Arc<TcpStream>>>>) {
     loop {
         let message = msg_recv.recv().unwrap();
         if let Err(_) = send_message(users, &message) {
@@ -71,8 +62,8 @@ fn echo_messages(msg_recv: Receiver<UserMessage>, users: &[Arc<TcpStream>]) {
     }
 }
 
-fn send_message(users: &[Arc<TcpStream>], message: &UserMessage) -> Result<(), Box<dyn Error>> {
-    for user in users.into_iter() {
+fn send_message(users: &Arc<RwLock<Vec<Arc<TcpStream>>>>, message: &UserMessage) -> Result<(), Box<dyn Error>> {
+    for user in &*users.write().unwrap() {
         let mut t: &TcpStream = &user;
         t.write_all(format!("{}: {}", message.user, message.message).as_bytes())?;
     }
