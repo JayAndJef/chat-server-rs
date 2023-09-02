@@ -22,7 +22,7 @@ fn main() {
         let msg_send_clone = tx.clone();
         let thread_handle = thread::spawn(move || { 
             match handle_user(stream, msg_send_clone) {
-                Ok(_) => println!("This should not be happening right now"),
+                Ok(_) => println!("A client disconnected successfully!"),
                 Err(err) => {
                     println!("{}", err);
                 }
@@ -40,12 +40,18 @@ fn handle_user(user: Arc<TcpStream>, msg_chan: Sender<UserMessage>) -> Result<()
     
     let mut stream_reader = BufReader::new(&*user);
     let mut recv: Vec<u8> = Vec::new();
-    stream_reader.read_until(0x04, &mut recv).unwrap();
+    if let Ok(0) = stream_reader.read_until(0x04, &mut recv) {
+        println!("unnamed client disconnected");
+        return Ok(());
+    }
     let name = String::from_utf8(recv.clone())?;
 
     loop {
         recv.clear();
-        stream_reader.read_until(0x04, &mut recv).unwrap_or_else(|_| {println!("recv went wrong!"); 0});
+        if let Ok(0) = stream_reader.read_until(0x04, &mut recv) {
+            println!("{} Disconnected!", &name);
+            return Ok(());
+        }
         let recv = String::from_utf8(recv.clone())
             .unwrap_or("Could not parse bytes".to_string());
 
@@ -56,6 +62,7 @@ fn handle_user(user: Arc<TcpStream>, msg_chan: Sender<UserMessage>) -> Result<()
 fn echo_messages(msg_recv: Receiver<UserMessage>, users: &Arc<RwLock<Vec<Arc<TcpStream>>>>) {
     loop {
         let message = msg_recv.recv().unwrap();
+        println!("message is {}", message.message);
         if let Err(_) = send_message(users, &message) {
             println!("Couldn't send message from {}", message.message)
         }
