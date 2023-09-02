@@ -65,7 +65,7 @@ fn echo_messages(msg_recv: Receiver<UserMessage>, users: &Arc<RwLock<Vec<Arc<Tcp
 fn send_message(users: &Arc<RwLock<Vec<Arc<TcpStream>>>>, message: &UserMessage) -> Result<(), Box<dyn Error>> {
     for user in &*users.write().unwrap() {
         let mut t: &TcpStream = &user;
-        t.write_all(format!("{}: {}", message.user, message.message).as_bytes())?;
+        t.write_all(format!("{}: {}\x04", message.user, message.message).as_bytes())?;
     }
 
     Ok(())
