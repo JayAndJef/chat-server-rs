@@ -41,7 +41,7 @@ fn handle_user(user: Arc<TcpStream>, msg_chan: Sender<UserMessage>) -> Result<()
     let mut stream_reader = BufReader::new(&*user);
     let mut recv: Vec<u8> = Vec::new();
     if let Ok(0) = stream_reader.read_until(0x04, &mut recv) {
-        println!("unnamed client disconnected");
+        println!("Unnamed client disconnected");
         return Ok(());
     }
     let name = String::from_utf8(recv.clone())?;
