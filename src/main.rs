@@ -29,7 +29,7 @@ fn main() {
             }
         });
         if let Err(_) = thread_handle.join() {
-            println!("Thread panic!")
+            println!("Thread panic!");
         }
     }
 }
@@ -63,10 +63,10 @@ fn echo_messages(msg_recv: Receiver<UserMessage>, users: &Arc<RwLock<Vec<Arc<Tcp
     loop {
         let message = msg_recv.recv().unwrap();
         println!("message is {}", message.message);
-        if let Err(_) = send_message(users, &message) {
-            println!("Couldn't send message from {}", message.message)
+        if let Err(e) = send_message(users, &message) {
+            println!("Couldn't send message from {} error {}", message.user, e)
         }
-    }
+    } 
 }
 
 fn send_message(users: &Arc<RwLock<Vec<Arc<TcpStream>>>>, message: &UserMessage) -> Result<(), Box<dyn Error>> {
