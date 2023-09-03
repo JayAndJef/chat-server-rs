@@ -40,7 +40,7 @@ fn handle_user(user: Arc<TcpStream>, msg_chan: Sender<UserMessage>) -> Result<()
     
     let mut stream_reader = BufReader::new(&*user);
     let mut recv: Vec<u8> = Vec::new();
-    if let Ok(0) = stream_reader.read_until(0x04, &mut recv) {
+    if matches!(stream_reader.read_until(0x04, &mut recv), Ok(0)) {
         println!("Unnamed client disconnected");
         return Ok(());
     }
@@ -71,7 +71,7 @@ fn echo_messages(msg_recv: Receiver<UserMessage>, users: &Arc<RwLock<Vec<Arc<Tcp
 
 fn send_message(users: &Arc<RwLock<Vec<Arc<TcpStream>>>>, message: &UserMessage) -> Result<(), Box<dyn Error>> {
     for user in &*users.write().unwrap() {
-        let mut t: &TcpStream = &user;
+        let mut t: &TcpStream = user;
         t.write_all(format!("{}: {}\x04", message.user, message.message).as_bytes())?;
     }
 
